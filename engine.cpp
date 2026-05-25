@@ -208,21 +208,21 @@ bool OSTrackEngine::load(const std::string& engine_path) {
         }
     }
     
-/*  CLAUDE ADD */
+/*  ADD */
  
 std::cout << "[DEBUG] score_map bound: " << (d_score_map_ ? "YES" : "NO") << std::endl;
 std::cout << "[DEBUG] size_map  bound: " << (d_size_map_  ? "YES" : "NO") << std::endl;
 std::cout << "[DEBUG] offset_map bound:" << (d_offset_map_? "YES" : "NO") << std::endl;
     
-/*  END CLAUDE ADD */
+/*  END ADD */
 
-/* CLAUDE SUPR
+/*  SUPR
     if (!d_template_ || !d_search_ || !d_score_map_) {
         std::cerr << "[OSTrackEngine] Missing required buffers!" << std::endl;
         return false;
     }   
-END CLAUDE SUPR */
-/*  CLAUDE ADD */
+END  SUPR */
+/*   ADD */
     if (!d_template_ || !d_search_ || !d_score_map_ || !d_size_map_ || !d_offset_map_) {
         std::cerr << "[OSTrackEngine] Missing required buffers! "
               << "score=" << (d_score_map_?1:0)
@@ -230,7 +230,7 @@ END CLAUDE SUPR */
               << " offset=" << (d_offset_map_?1:0) << std::endl;
         return false;
     }
-/*  END CLAUDE ADD */
+/*  END  ADD */
 
     std::cout << "[OSTrackEngine] Loaded OK  feat_sz=" << feat_sz_
               << "  search=" << search_size_
@@ -268,9 +268,9 @@ bool OSTrackEngine::infer(
         fp32ToFp16(d_tmp_template, d_template_, template_elems, stream_);
         fp32ToFp16(d_tmp_search, d_search_, search_elems, stream_);
 
-/*  CLAUDE ADD */
+/*   ADD */
         cudaStreamSynchronize(stream_);
-/*  END CLAUDE ADD */
+/*  END  ADD */
         cudaFree(d_tmp_template);
         cudaFree(d_tmp_search);
     } else {
@@ -309,9 +309,9 @@ bool OSTrackEngine::infer(
         cudaMemcpyAsync(size_map, d_tmp_size, sz_elems * sizeof(float), cudaMemcpyDeviceToHost, stream_);
         cudaMemcpyAsync(offset_map, d_tmp_offset, of_elems * sizeof(float), cudaMemcpyDeviceToHost, stream_);
 
-/*  CLAUDE ADD */
+/*   ADD */
         cudaStreamSynchronize(stream_);
-/*  END CLAUDE ADD */
+/*  END  ADD */
         cudaFree(d_tmp_score);
         cudaFree(d_tmp_size);
         cudaFree(d_tmp_offset);
