@@ -101,6 +101,7 @@ bool OSTrackEngine::load(const std::string& engine_path) {
             }
         }
     }
+      
     // Determine which input is template (smaller) and which is search (larger)
     int template_input_idx = -1;
     int search_input_idx   = -1;
@@ -206,11 +207,30 @@ bool OSTrackEngine::load(const std::string& engine_path) {
             }
         }
     }
+    
+/*  CLAUDE ADD */
+ 
+std::cout << "[DEBUG] score_map bound: " << (d_score_map_ ? "YES" : "NO") << std::endl;
+std::cout << "[DEBUG] size_map  bound: " << (d_size_map_  ? "YES" : "NO") << std::endl;
+std::cout << "[DEBUG] offset_map bound:" << (d_offset_map_? "YES" : "NO") << std::endl;
+    
+/*  END CLAUDE ADD */
 
+/* CLAUDE SUPR
     if (!d_template_ || !d_search_ || !d_score_map_) {
         std::cerr << "[OSTrackEngine] Missing required buffers!" << std::endl;
         return false;
+    }   
+END CLAUDE SUPR */
+/*  CLAUDE ADD */
+    if (!d_template_ || !d_search_ || !d_score_map_ || !d_size_map_ || !d_offset_map_) {
+        std::cerr << "[OSTrackEngine] Missing required buffers! "
+              << "score=" << (d_score_map_?1:0)
+              << " size=" << (d_size_map_?1:0)
+              << " offset=" << (d_offset_map_?1:0) << std::endl;
+        return false;
     }
+/*  END CLAUDE ADD */
 
     std::cout << "[OSTrackEngine] Loaded OK  feat_sz=" << feat_sz_
               << "  search=" << search_size_
@@ -248,6 +268,9 @@ bool OSTrackEngine::infer(
         fp32ToFp16(d_tmp_template, d_template_, template_elems, stream_);
         fp32ToFp16(d_tmp_search, d_search_, search_elems, stream_);
 
+/*  CLAUDE ADD */
+        cudaStreamSynchronize(stream_);
+/*  END CLAUDE ADD */
         cudaFree(d_tmp_template);
         cudaFree(d_tmp_search);
     } else {
@@ -286,6 +309,9 @@ bool OSTrackEngine::infer(
         cudaMemcpyAsync(size_map, d_tmp_size, sz_elems * sizeof(float), cudaMemcpyDeviceToHost, stream_);
         cudaMemcpyAsync(offset_map, d_tmp_offset, of_elems * sizeof(float), cudaMemcpyDeviceToHost, stream_);
 
+/*  CLAUDE ADD */
+        cudaStreamSynchronize(stream_);
+/*  END CLAUDE ADD */
         cudaFree(d_tmp_score);
         cudaFree(d_tmp_size);
         cudaFree(d_tmp_offset);
