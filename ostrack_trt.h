@@ -82,7 +82,7 @@ private:
     std::unique_ptr<OSTrackEngine> engine_;
 
     BBox state_;
-    cv::Mat z_patch_;          // stored template crop (RGB)
+    cv::Mat z_patch_;          // stored template crop (BGR, matching Python Preprocessor input)
     float resize_factor_z_ = 1.0f;
 
     int feat_sz_ = 24;         // search_size / backbone_stride
