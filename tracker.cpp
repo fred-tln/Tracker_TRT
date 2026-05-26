@@ -4,7 +4,7 @@
  *
  * Implements the tracking logic:
  *   - extractCrop   : sample_target equivalent
- *   - normalizeToCHW: image normalization (RGB input, CHW output)
+ *   - normalizeToCHW: image normalization (BGR input, CHW output)
  *   - calBBox       : bounding box regression from score/size/offset maps
  *   - mapBoxBack    : map predicted box back to image coordinates
  *   - clipBox       : clamp box to image boundaries
@@ -93,10 +93,12 @@ void OSTrackTracker::extractCrop(const cv::Mat& img, const BBox& bbox,
 
 // =============================================================================
 // normalizeToCHW  (equivalent of Preprocessor.process)
-// Input: RGB image (8UC3), Output: CHW normalized float array
+// Input: BGR image (8UC3), Output: CHW normalized float array
+// Channel order is intentionally kept as BGR to match the Python Preprocessor
+// which applies mean/std to channels 0,1,2 without any BGR->RGB conversion.
 // =============================================================================
-void OSTrackTracker::normalizeToCHW(const cv::Mat& crop_rgb, std::vector<float>& out) {
-    int sz = crop_rgb.cols;  // square image
+void OSTrackTracker::normalizeToCHW(const cv::Mat& crop_bgr, std::vector<float>& out) {
+    int sz = crop_bgr.cols;  // square image
     out.resize(3 * sz * sz);
 
     const float* mean = config_.mean;
@@ -106,7 +108,7 @@ void OSTrackTracker::normalizeToCHW(const cv::Mat& crop_rgb, std::vector<float>&
         for (int y = 0; y < sz; y++) {
             for (int x = 0; x < sz; x++) {
                 int i = y * sz + x;  // row-major index
-                float val = static_cast<float>(crop_rgb.ptr<uchar>(y)[x * 3 + c]) / 255.0f;
+                float val = static_cast<float>(crop_bgr.ptr<uchar>(y)[x * 3 + c]) / 255.0f;
                 out[c * sz * sz + i] = (val - mean[c]) / std_[c];
             }
         }
@@ -115,11 +117,20 @@ void OSTrackTracker::normalizeToCHW(const cv::Mat& crop_rgb, std::vector<float>&
 
 // =============================================================================
 // genHann2D  (equivalent of hann2d in hann.py)
+// Matches torch.hann_window(n, periodic=False):
+//   w[i] = 0.5 * (1 - cos(2*pi*i / (n-1)))   for i = 0 .. n-1
+// The window is 0 at both endpoints and peaks at the centre, which fully
+// suppresses the borders of the score map (important when the model outputs
+// spurious activations at feature-map edges).
 // =============================================================================
 std::vector<float> OSTrackTracker::genHann2D(int sz) {
     std::vector<float> hann1d(sz);
     for (int i = 0; i < sz; i++) {
-        hann1d[i] = 0.5f * (1.0f - std::cos(2.0f * M_PI * (i + 1) / (sz + 1)));
+        // Use sz-1 as denominator so the window reaches exactly 0 at both ends.
+        // Guard against sz==1 to avoid division by zero.
+        hann1d[i] = (sz > 1)
+            ? 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (sz - 1)))
+            : 1.0f;
     }
 
     std::vector<float> hann2d(sz * sz);
@@ -211,13 +222,11 @@ bool OSTrackTracker::initialize(const cv::Mat& frame, const BBox& init_bbox) {
 
     state_ = init_bbox;
 
-    // Extract template crop (BGR from frame)
-    cv::Mat z_patch_bgr;
+    // Extract template crop (BGR from frame) and store as-is.
+    // The Python Preprocessor.process does NOT convert BGR->RGB before
+    // building the CHW tensor, so the TRT engine expects BGR channel order.
     extractCrop(frame, init_bbox, config_.template_factor,
-                config_.template_size, z_patch_bgr, resize_factor_z_);
-
-    // Convert to RGB for storage
-    cv::cvtColor(z_patch_bgr, z_patch_, cv::COLOR_BGR2RGB);
+                config_.template_size, z_patch_, resize_factor_z_);
 
     std::cout << "[OSTrackTracker] Initialized with bbox: "
               << init_bbox.x << "," << init_bbox.y << ","
@@ -234,21 +243,18 @@ BBox OSTrackTracker::track(const cv::Mat& frame) {
         return state_;
     }
 
-    // Extract search crop (BGR from frame)
+    // Extract search crop (BGR from frame).
+    // Keep BGR channel order to match the Python Preprocessor.process behaviour.
     cv::Mat x_patch_bgr;
     float resize_factor_x;
     extractCrop(frame, state_, config_.search_factor,
                 config_.search_size, x_patch_bgr, resize_factor_x);
 
-    // Convert to RGB
-    cv::Mat x_patch_rgb;
-    cv::cvtColor(x_patch_bgr, x_patch_rgb, cv::COLOR_BGR2RGB);
-
-    // Normalize both crops (RGB -> CHW normalized)
+    // Normalize both crops (BGR -> CHW normalized)
     std::vector<float> template_chw;
     std::vector<float> search_chw;
     normalizeToCHW(z_patch_, template_chw);
-    normalizeToCHW(x_patch_rgb, search_chw);
+    normalizeToCHW(x_patch_bgr, search_chw);
 
     // Run inference
     std::vector<float> score_map(feat_sz_ * feat_sz_);
