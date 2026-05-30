@@ -127,21 +127,6 @@ bool OSTrackEngine::load(const std::string& engine_path) {
         size_t elem_bytes = (dtype == nvinfer1::DataType::kHALF) ? 2 : 4;
         size_t total = elems * elem_bytes;
 
-
-        // === PATCH DEBUG START ===
-        std::cout << "[DEBUG] Tensor[" << i << "] name=\"" << name << "\""
-                  << " mode=" << (mode == nvinfer1::TensorIOMode::kINPUT ? "INPUT" : "OUTPUT")
-                  << " dtype=" << (dtype == nvinfer1::DataType::kHALF ? "FP16" : "FP32")
-                  << " shape=(";
-        for (int d = 0; d < dims.nbDims; d++) {
-            if (d > 0) std::cout << ",";
-            std::cout << dims.d[d];
-        }
-        std::cout << ")" << std::endl;
-        // === PATCH DEBUG END ===
-
-
-
         std::string mode_str = (mode == nvinfer1::TensorIOMode::kINPUT) ? "IN  " : "OUT ";
         std::string dtype_str = (dtype == nvinfer1::DataType::kHALF) ? "FP16" : "FP32";
 
@@ -223,30 +208,13 @@ bool OSTrackEngine::load(const std::string& engine_path) {
         }
     }
     
-// === PATCH DEBUG START ===
-std::cout << "\n[DEBUG] === TENSOR ASSIGNMENT SUMMARY ===" << std::endl;
-std::cout << "[DEBUG] Inputs:" << std::endl;
-std::cout << "  template_input_idx = " << template_input_idx 
-          << " (size=" << template_size_ << ")" << std::endl;
-std::cout << "  search_input_idx = " << search_input_idx 
-          << " (size=" << search_size_ << ")" << std::endl;
-std::cout << "[DEBUG] Outputs:" << std::endl;
-std::cout << "  score_map: " << (d_score_map_ ? "BOUND" : "NULL") 
-          << " (bytes=" << score_map_bytes_ << ")" << std::endl;
-std::cout << "  size_map: " << (d_size_map_ ? "BOUND" : "NULL") 
-          << " (bytes=" << size_map_bytes_ << ")" << std::endl;
-std::cout << "  offset_map: " << (d_offset_map_ ? "BOUND" : "NULL") 
-          << " (bytes=" << offset_map_bytes_ << ")" << std::endl;
-std::cout << "[DEBUG] feat_sz_ = " << feat_sz_ << std::endl;
-std::cout << "[DEBUG] ================================\n" << std::endl;
-
-// Vérification critique
-if (d_size_map_ && d_offset_map_) {
-    std::cout << "[DEBUG] WARNING: size_map and offset_map both have shape [2, feat_sz, feat_sz]." << std::endl;
-    std::cout << "[DEBUG] If they are swapped, tracking will fail!" << std::endl;
-    std::cout << "[DEBUG] Please check tensor names in engine to verify assignment." << std::endl;
-}
-// === PATCH DEBUG END ===
+/*  ADD */
+ 
+std::cout << "[DEBUG] score_map bound: " << (d_score_map_ ? "YES" : "NO") << std::endl;
+std::cout << "[DEBUG] size_map  bound: " << (d_size_map_  ? "YES" : "NO") << std::endl;
+std::cout << "[DEBUG] offset_map bound:" << (d_offset_map_? "YES" : "NO") << std::endl;
+    
+/*  END ADD */
 
 /*  SUPR
     if (!d_template_ || !d_search_ || !d_score_map_) {
@@ -254,7 +222,7 @@ if (d_size_map_ && d_offset_map_) {
         return false;
     }   
 END  SUPR */
-/*   ADD 
+/*   ADD */
     if (!d_template_ || !d_search_ || !d_score_map_ || !d_size_map_ || !d_offset_map_) {
         std::cerr << "[OSTrackEngine] Missing required buffers! "
               << "score=" << (d_score_map_?1:0)
@@ -262,7 +230,7 @@ END  SUPR */
               << " offset=" << (d_offset_map_?1:0) << std::endl;
         return false;
     }
-  END  ADD */
+/*  END  ADD */
 
     std::cout << "[OSTrackEngine] Loaded OK  feat_sz=" << feat_sz_
               << "  search=" << search_size_

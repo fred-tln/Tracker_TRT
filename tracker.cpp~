@@ -169,26 +169,6 @@ void OSTrackTracker::calBBox(const float* score_map, const float* size_map,
     float offset_0 = offset_map[0 * feat_sz_ * feat_sz_ + pos];  // dx
     float offset_1 = offset_map[1 * feat_sz_ * feat_sz_ + pos];  // dy
 
-// === PATCH DEBUG START ===
-    std::cout << "\n[DEBUG] calBBox raw values:" << std::endl;
-    std::cout << "  argmax position: idx=" << idx 
-              << " (x=" << idx_x << ", y=" << idx_y << ")" << std::endl;
-    std::cout << "  max_score: " << max_score << std::endl;
-    std::cout << "  size_map[0] (width): " << size_0 << std::endl;
-    std::cout << "  size_map[1] (height): " << size_1 << std::endl;
-    std::cout << "  offset_map[0] (dx): " << offset_0 << std::endl;
-    std::cout << "  offset_map[1] (dy): " << offset_1 << std::endl;
-    
-    // Vérification des plages de valeurs
-    if (size_0 < 0 || size_0 > 1 || size_1 < 0 || size_1 > 1) {
-        std::cerr << "  [WARNING] size values out of expected range [0,1]!" << std::endl;
-    }
-    if (std::abs(offset_0) > 1 || std::abs(offset_1) > 1) {
-        std::cerr << "  [WARNING] offset values out of expected range [-1,1]!" << std::endl;
-    }
-    // === PATCH DEBUG END ===
-
-
     // bbox: cx, cy, w, h (normalized to [0,1] in feature map)
     cx = (static_cast<float>(idx_x) + offset_0) / feat_sz_;
     cy = (static_cast<float>(idx_y) + offset_1) / feat_sz_;
@@ -297,39 +277,8 @@ BBox OSTrackTracker::track(const cv::Mat& frame) {
     calBBox(score_map.data(), size_map.data(), offset_map.data(),
             cx, cy, w, h);
 
- // === PATCH DEBUG START ===
-    std::cout << "\n[DEBUG] Before mapBoxBack:" << std::endl;
-    std::cout << "  cx=" << cx << " cy=" << cy << " w=" << w << " h=" << h << std::endl;
-    std::cout << "  resize_factor_x=" << resize_factor_x << std::endl;
-    std::cout << "  search_size=" << config_.search_size << std::endl;
-    std::cout << "  state_ (prev): x=" << state_.x << " y=" << state_.y 
-              << " w=" << state_.w << " h=" << state_.h << std::endl;
-    
-    if (cx < 0 || cx > 1 || cy < 0 || cy > 1) {
-        std::cerr << "  [ERROR] cx or cy out of [0,1] range!" << std::endl;
-    }
-    if (w <= 0 || h <= 0) {
-        std::cerr << "  [ERROR] w or h is non-positive!" << std::endl;
-    }
-    // === PATCH DEBUG END ===
-
-
     // Map back to original coordinates
     BBox pred = mapBoxBack(cx, cy, w, h, resize_factor_x, config_.search_size);
-   
-    
-     // === PATCH DEBUG START ===
-    std::cout << "\n[DEBUG] After mapBoxBack:" << std::endl;
-    std::cout << "  pred: x=" << pred.x << " y=" << pred.y 
-              << " w=" << pred.w << " h=" << pred.h << std::endl;
-    std::cout << "  frame size: " << frame.cols << "x" << frame.rows << std::endl;
-    
-    // Vérification que la bbox est dans l'image
-    if (pred.x < 0 || pred.x >= frame.cols || pred.y < 0 || pred.y >= frame.rows) {
-        std::cerr << "  [WARNING] Predicted box is outside image!" << std::endl;
-    }
-    // === PATCH DEBUG END ===
-    
 
     // Clip to image boundaries
     pred = clipBox(pred, frame.rows, frame.cols, 10);
